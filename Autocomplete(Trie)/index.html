@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autocomplete with Trie</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        h2 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+        }
+        input {
+            width: 300px;
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+            margin-bottom: 10px;
+            box-shadow: inset 0px 4px 6px rgba(0,0,0,0.2);
+        }
+        .suggestions {
+            border: none;
+            width: 320px;
+            margin: auto;
+            text-align: left;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+        }
+        .suggestions div {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #ddd;
+            color: black;
+            font-size: 16px;
+        }
+        .suggestions div:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <h2>Cool Autocomplete System (Trie data-structure)</h2>
+    <div class="container">
+        <input type="text" id="search" placeholder="Type to search...">
+        <div class="suggestions" id="suggestions"></div>
+    </div>
+    
+    <script>
+        class TrieNode {
+            constructor() {
+                this.children = {};
+                this.isEndOfWord = false;
+            }
+        }
+
+        class Trie {
+            constructor() {
+                this.root = new TrieNode();
+            }
+
+            insert(word) {
+                let node = this.root;
+                for (let char of word) {
+                    if (!node.children[char]) {
+                        node.children[char] = new TrieNode();
+                    }
+                    node = node.children[char];
+                }
+                node.isEndOfWord = true;
+            }
+
+            searchPrefix(prefix) {
+                let node = this.root;
+                for (let char of prefix) {
+                    if (!node.children[char]) return [];
+                    node = node.children[char];
+                }
+                return this.getWordsFromNode(node, prefix);
+            }
+
+            getWordsFromNode(node, prefix) {
+                let words = [];
+                if (node.isEndOfWord) words.push(prefix);
+                for (let char in node.children) {
+                    words = words.concat(this.getWordsFromNode(node.children[char], prefix + char));
+                }
+                return words;
+            }
+        }
+
+        const trie = new Trie();
+
+        function loadWords() {
+            if (!localStorage.getItem("wordList")) {
+                fetch("words.json")
+                    .then(response => response.json())
+                    .then(wordList => {
+                        localStorage.setItem("wordList", JSON.stringify(wordList));
+                        wordList.forEach(word => trie.insert(word));
+                    })
+                    .catch(error => console.error("Error loading words:", error));
+            } else {
+                JSON.parse(localStorage.getItem("wordList")).forEach(word => trie.insert(word));
+            }
+        }
+
+        function fetchFromAPI() {
+            fetch("https://api.datamuse.com/words?ml=fruit")
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(item => trie.insert(item.word));
+                })
+                .catch(error => console.error("Error fetching words:", error));
+        }
+
+        loadWords();
+        fetchFromAPI();
+
+        document.getElementById("search").addEventListener("input", function() {
+            const input = this.value;
+            const suggestionsDiv = document.getElementById("suggestions");
+            suggestionsDiv.innerHTML = "";
+            if (input) {
+                const suggestions = trie.searchPrefix(input);
+                suggestions.forEach(suggestion => {
+                    const div = document.createElement("div");
+                    div.textContent = suggestion;
+                    div.addEventListener("click", () => {
+                        document.getElementById("search").value = suggestion;
+                        suggestionsDiv.innerHTML = "";
+                    });
+                    suggestionsDiv.appendChild(div);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
